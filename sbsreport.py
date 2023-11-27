@@ -28,7 +28,11 @@ sbs_report = {
     0x15 : ('Charging Voltage', 2, 'mV'),
     0x17 : ('Cycle count', 2, ''),
     0x18 : ('Design capacity', 2, 'mAh'),
-    0x19 : ('Design voltage', 2, 'mV')
+    0x19 : ('Design voltage', 2, 'mV'),
+    0x3c : ('VCell4', 2, 'mV'),
+    0x3d : ('VCell3', 2, 'mV'),
+    0x3e : ('VCell2', 2, 'mV'),
+    0x3f : ('VCell1', 2, 'mV')
 }
 batt_stat = {
     4 : 'FD',
@@ -63,10 +67,6 @@ for key, value in sbs_report.items():
     if (value[1] == 5):
         data = '{0:0.1f}'.format(data * .1 - 273.15)
     print(value[0] + ':', data, value[2])
-data = smbus_read_block(bus, dev_addr, 0x23)
-if (len(data) >= 12):
-    for i in range(0,4):
-        print('Cell {0} voltage: {1} mV'.format(i, data[4 + i * 2 ] + data[4 + i * 2 + 1] * 256))
 data = bus.read_word_data(dev_addr, 0x16)
 bs = list()
 for key, value in batt_stat.items():
