@@ -11,8 +11,11 @@ i = 0
 count = 0
 while(1):
     count += 1
-    data = bus.read_word_data(dev_addr, 0x73)
-    bus.write_word_data(dev_addr, 0x71, i)
+    try:
+        data = bus.read_word_data(dev_addr, 0x73)
+        bus.write_word_data(dev_addr, 0x71, i)
+    except:
+        print ('Bus input/output error')
     print('{:10} data 74: 0x{:04x}, challenge: 0x{:04x}, guess: 0x{:04x} - '.format(count, data74, data, i), end='')
     try:
         bus.write_word_data(dev_addr, 0x70, 0x0517)

@@ -20,6 +20,8 @@ sbs_report = {
     0x09 : ('Voltage', 2, 'mV'),
     0x0a : ('Current', 2, 'mA'),
     0x0c : ('Max error', 2, '%'),
+    0x0d : ('RSoC', 2, '%'),
+    0x0e : ('ASoC', 2, '%'),
     0x0f : ('Remaining capacity', 2, 'mAh'),
     0x10 : ('Full charge capacity', 2, 'mAh'),
     0x14 : ('Charging Current', 2, 'mAh'),
