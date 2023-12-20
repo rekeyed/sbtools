@@ -39,7 +39,11 @@ hw_report = {
     0x0001 : 'Device type: ',
     0x0002 : 'Firmware ver:',
     0x0003 : 'Hardware ver:',
-    0x0008 : 'Chemistry ID:'
+    0x0008 : 'Chemistry ID:',
+    0x0051 : 'Safety status:',
+    0x0053 : 'PFStatus:',
+    0x0069 : 'Safety status 2:',
+    0x006b : 'PFStatus 2:',
 }
 batt_stat_flags = {
     4 : 'FD',
@@ -78,23 +82,26 @@ manuf_stat_flags = {
    8  : 'STATE0'
 }
 batt_mode_flags = {
-15 : 'CapM',
-14 : 'ChgM',
-13 : 'AM',
-9  : 'PB',
-8  : 'CC',
-7  : 'CF',
-1  : 'PBS',
-0  : 'ICC'
+    15 : 'CapM',
+    14 : 'ChgM',
+    13 : 'AM',
+    9  : 'PB',
+    8  : 'CC',
+    7  : 'CF',
+    1  : 'PBS',
+    0  : 'ICC'
+}
+fet_control_flags = {
+4 : 'OD',
+3 : 'ZVCHG',
+2 : 'CHG',
+1 : 'DSG'
 }
 
 def smbus_read_block(bus, addr, cmd):
     length = bus.read_byte_data(addr, cmd)
-#    if (length > 31):
-#        length = 31
     write = i2c_msg.write(addr, [cmd])
     read = i2c_msg.read(addr, length + 1)
-    #data = bus.read_i2c_block_data(addr, cmd, length + 1)
     bus.i2c_rdwr(write, read)
     data = list(read)
     return (data[1:])
@@ -103,7 +110,7 @@ def smbus_read_subclass(bus, addr, id, page):
     bus.write_word_data(addr, 0x77, id)
     sleep(0.1)
     data = smbus_read_block(bus, addr, page)
-    print ('subclass {0}, page={1}, len={2}:'.format(id, page, len(data)), ''.join("{:02x}".format(num) for num in data))
+    print ('subclass 0x{0:02x}, page=0x{1:02x}, len={2}:'.format(id, page, len(data)), ''.join("{:02x}".format(num) for num in data))
     return data
 
 def getflags(data, flags):
@@ -113,7 +120,7 @@ def getflags(data, flags):
             stat.append(value)
     if (stat):
         return '|'.join(stat)
-    return 'No flags'
+    return 'No flags set'
 
 def smbus_read_wordaddr(bus, addr, word):
     bus.write_word_data(addr, 0, word)
@@ -132,8 +139,17 @@ for key, value in sbs_report.items():
     if (value[1] == 5):
         data = '{0:0.1f}'.format(data * .1 - 273.15)
     print(value[0] + ':', data, value[2])
+
+for key, value in hw_report.items():
+    data = smbus_read_wordaddr(bus, dev_addr, key)
+    print('{0} 0x{1:04x}'.format(value, data))
+
 data = bus.read_word_data(dev_addr, 0x16)
 print('Battery Status: ', '0x{0:04x}\n{1}'.format(data, getflags(data, batt_stat_flags)))
+
+data = smbus_read_wordaddr(bus, dev_addr, 0x0006)
+print('Manufacturer Status: ', '0x{0:04x}\n{1}'.format(data, getflags(data, manuf_stat_flags)))
+
 data = smbus_read_wordaddr(bus, dev_addr, 0x0054)
 print('Operation Status: ', '0x{0:04x}\n{1}'.format(data, getflags(data, oper_stat_flags)))
 if (data & (1 << 13)):
@@ -145,8 +161,6 @@ if (data & (1 << 13)):
     print("Failed")
 else:
     print("Unsealed")
-    data = smbus_read_wordaddr(bus, dev_addr, 0x0006)
-    print('Manufacturer Status: ', '0x{0:04x}\n{1}'.format(data, getflags(data, manuf_stat_flags)))
     data = smbus_read_subclass(bus, dev_addr, 82, 0x78)
     print("Update Status: ", data[12])
     print("Qmax Cell0: ", data[0]*256+data[1])
@@ -155,8 +169,7 @@ else:
     print("Qmax Cell4: ", data[6]*256+data[7])
     print("Qmax Pack : ", data[8]*256+data[9])
 
-for key, value in hw_report.items():
-    data = smbus_read_wordaddr(bus, dev_addr, key)
-    print('{0} 0x{1:04x}'.format(value, data))
-
+bus.write_word_data(dev_addr, 0x46, 0x0006)
+data = bus.read_word_data(dev_addr, 0x46)
+print('FET Control: ', '0x{0:04x}\n{1}'.format(data, getflags(data, fet_control_flags)))
 bus.close()

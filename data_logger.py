@@ -55,7 +55,6 @@ def smbus_read_block(bus, addr, cmd):
             success = 1
         except:
             max_error -= 1
-            print("\nReading error occured, {} errors left (block)".format(max_error))
             if (max_error == 0):
                 print("\nSorry, maximum error count reached while reading SMBus(block)")
                 exit(1)
@@ -90,6 +89,12 @@ def get_temperature(bus, addr):
     data = smbus_read_word(bus, addr, 0x08)
     return (data * .1 - 273.15)
 
+def get_vcell(bus, addr):
+    vcell = []
+    for i in range(0x3c, 0x3f + 1):
+        vcell.insert(0, smbus_read_word(bus, addr, i))
+    return vcell
+
 now = datetime.datetime.now()
 logfile_name = 'log_' + now.strftime("%d-%m-%Y_%H-%M-%S") + '.txt'
 print("Opening log file", logfile_name, 'for writing...', end='')
@@ -117,12 +122,9 @@ for key, value in sbs_report.items():
         data = data - 0x10000 if (data >> 15) else data
     print_log(value[0] + ':', data, value[2])
 
-data = smbus_read_block(bus, dev_addr, 0x23)
-vcell = []
-if (len(data) >= 12):
-    for i in range(0,4):
-        vcell.append(data[4 + i * 2 ] + data[4 + i * 2 + 1] * 256)
-        print_log('Cell {0} voltage: {1} mV'.format(i, vcell[-1]))
+vcell = get_vcell(bus, dev_addr)
+for i in range(0,4):
+    print_log('Cell {0} voltage: {1} mV'.format(i, vcell[i]))
 data = smbus_read_word(bus, dev_addr, 0x16)
 bs = list()
 for key, value in batt_stat.items():
@@ -141,12 +143,10 @@ if current > 0:
 else:
     print_log('Load detected. ', end='')
 print_log('Current = {} mA'.format(abs(current)))
-data = smbus_read_block(bus, dev_addr, 0x23)
-if (len(data) >= 12):
-    for i in range(0,4):
-        v = (data[4 + i * 2 ] + data[4 + i * 2 + 1] * 256)
-        r = (v - vcell[i]) / current * 1000
-        print_log('Cell {0} voltage: {1} mV  R={2:.1f} mOhm'.format(i, v, r))
+v = get_vcell(bus, dev_addr)
+for i in range(0,4):
+    r = (v[i] - vcell[i]) / current * 1000
+    print_log('Cell {0} voltage: {1} mV  R={2:.1f} mOhm'.format(i, v[i], r))
 start_time = datetime.datetime.now()
 prev_time = 0
 capacity = 0
@@ -159,16 +159,15 @@ while (current != 0):
     voltage = smbus_read_word(bus, dev_addr, 0x09)
     t = get_temperature(bus, dev_addr)
     rem_cap = smbus_read_word(bus, dev_addr, 0x0f)
-    data = smbus_read_block(bus, dev_addr, 0x23)
-    if (len(data) >= 12):
-        for i in range(0,4):
-            vcell[i] = (data[4 + i * 2 ] + data[4 + i * 2 + 1] * 256)
+    vcell = get_vcell(bus, dev_addr)
     capacity += (time_passed - prev_time) * current / 3600
     prev_time = time_passed
     print("{:.2f},{},{},{},{},{},{},{:.1f},{},{:.1f}".format(
         time_passed, current, voltage, vcell[0], vcell[1], vcell[2], vcell[3], t, rem_cap, capacity), file=logfile)
-    print("Time={:.2f}s, I={}mA, V={}mV, V0={}, V1={}, V2={}, V3={}, T={:.1f}\xb0C, RemCap={}, Cap={:.1f}mAh     ".format(
+    print("Time={:.1f}s, I={}mA, V={}mV, V0={}, V1={}, V2={}, V3={}, T={:.1f}\xb0C, RemCap={}, Cap={:.1f}mAh     ".format(
         time_passed, current, voltage, vcell[0], vcell[1], vcell[2], vcell[3], t, rem_cap, capacity), end='\r')
-    sleep(0.3)
+    if (int(time_passed) % 300 <= 1):
+        print()
+    sleep(1)
 print_log('\nLog ended:', datetime.datetime.now())
 bus.close()
