@@ -3,7 +3,7 @@
 import time
 import hid
 
-bus_speed = 40000   # 25 kHz
+bus_speed = 40000   # Bus speed in Hz
 write_timeout = 100 # 0-1000ms, 0 - disabled
 read_timeout = 100  # 0-1000ms, 0 - disabled
 retry_count = 10    # 0-1000, 0 - No limit
