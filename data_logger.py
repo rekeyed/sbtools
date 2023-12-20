@@ -3,6 +3,7 @@
 import smbus2
 import datetime
 from time import sleep
+from smb_funcs import *
 
 bus = smbus2.SMBus(1)
 dev_addr = 0x0b
@@ -42,40 +43,6 @@ batt_stat = {
     14 : 'TCA',
     15 : 'OCA'
 }
-
-def smbus_read_block(bus, addr, cmd):
-    max_error = 10
-    success = 0
-    while (success == 0):
-        try:
-            length = bus.read_byte_data(addr, cmd)
-            if length > 31:
-                length = 31
-            data = bus.read_i2c_block_data(addr, cmd, length + 1)
-            success = 1
-        except:
-            max_error -= 1
-            if (max_error == 0):
-                print("\nSorry, maximum error count reached while reading SMBus(block)")
-                exit(1)
-            sleep(.1)
-    return (data[1:])
-
-def smbus_read_word(bus, addr, cmd):
-    max_error = 10
-    success = 0
-    while (success == 0):
-        try:
-            data = bus.read_word_data(addr, cmd)
-            success = 1
-        except:
-            max_error -= 1
-            print("\nReading error occured, {} errors left".format(max_error))
-            if (max_error == 0):
-                print("\nSorry, maximum error count reached while reading SMBus")
-                exit(1)
-            sleep(.1)
-    return (data)
 
 def print_log(*args, **kwargs):
     print(*args, **kwargs)
